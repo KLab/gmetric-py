@@ -50,7 +50,6 @@ s.close_socket()
 
 import logging
 import socket
-import ipaddress
 import threading
 from enum import Enum, IntEnum, unique
 import xdrlib
@@ -312,10 +311,21 @@ class Sender:
         self.__mysocket = None
         self.__mylock = threading.RLock()
 
+    def __is_multicast_address__(self):
+        flag = False
+        try:
+            import ipaddress
+            flag = ipaddress.ip_address(self.__dstaddr[0]).is_multicast
+        except ImportError:
+            import struct
+            binaddr = struct.unpack('!L', socket.inet_aton(self.__dstaddr[0]))[0]
+            flag = ((binaddr & 0xf0000000) == 0xe0000000)
+        return flag
+
     def create_socket(self):
         """ create sender socket"""
         self.__mysocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        if ipaddress.ip_address(self.__dstaddr[0]).is_multicast:
+        if self.__is_multicast_address__():
             self.__mysocket.setsockopt(socket.IPPROTO_IP,
                                        socket.IP_MULTICAST_TTL, self.__ttl)
 
